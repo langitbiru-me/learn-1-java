@@ -2,10 +2,15 @@ package week_2.day_4.raw_http_server;
 
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HttpServer {
 
     private final int port;
+
+    // use for in memory db
+    private List<String> users = new ArrayList<>(List.of("Alif", "Budi", "Catur"));
 
     public HttpServer(int port) {
         this.port = port;
@@ -45,6 +50,10 @@ public class HttpServer {
                 HttpResponse.ok(homePage());
             case "/about" ->
                 HttpResponse.ok(aboutPage());
+            case "/api/hello" ->
+                HttpResponse.json("{\"message\":\"Hello from Java!\"}");
+            case "/api/users" ->
+                HttpResponse.json(buidUserJson());
             default ->
                 HttpResponse.notFound();
         };
@@ -75,5 +84,19 @@ public class HttpServer {
             </body>
             </html>
             """;
+    }
+
+    private String buidUserJson() {
+        // Build JSON manually — later you'll use a library like Jackson
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < users.size(); i++) {
+            sb.append("{\"id\": ").append(i + 1)
+                    .append(", \"name\": \"").append(users.get(i)).append("\"}");
+            if (i < users.size() - 1) {
+                sb.append(", ");
+            }
+        }
+        sb.append("]");
+        return sb.toString();
     }
 }
