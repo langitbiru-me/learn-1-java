@@ -3,7 +3,11 @@ package week_2.day_4.raw_http_server;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HttpServer {
 
@@ -44,19 +48,59 @@ public class HttpServer {
 
     // router - maps path to resposen
     private HttpResponse router(HttpRequest request) {
-        System.out.println(request.getMethod() + " " + request.getPath());
-        return switch (request.getPath()) {
-            case "/" ->
-                HttpResponse.ok(homePage());
-            case "/about" ->
-                HttpResponse.ok(aboutPage());
-            case "/api/hello" ->
-                HttpResponse.json("{\"message\":\"Hello from Java!\"}");
-            case "/api/users" ->
-                HttpResponse.json(buidUserJson());
-            default ->
-                HttpResponse.notFound();
-        };
+        String path = request.getPath();
+        System.out.println(request.getMethod() + " " + path);
+
+        Map<String, String> params = new HashMap<>();
+
+        if (path.equals("/")) {
+            return HttpResponse.ok(homePage());
+        } else if (path.equals("/about")) {
+            return HttpResponse.ok(aboutPage());
+        } else if (path.equals("/api/hello")) {
+            return HttpResponse.json("{\"message\":\"Hello from Java!\"}");
+        } else if (path.equals("/api/users")) {
+            return HttpResponse.json(buidUserJson());
+        } else if (matchRoute(path, "/api/users/:id", params)) {
+            try {
+                int id = Integer.parseInt(params.get("id"));
+                String userJson = buildUser(id);
+                if (userJson == null) {
+                    return HttpResponse.notFound();
+                }
+                return HttpResponse.json(userJson);
+            } catch (NumberFormatException e) {
+                return HttpResponse.notFound();
+            }
+        }
+
+        return HttpResponse.notFound();
+    }
+
+    private boolean matchRoute(String path, String patternStr, Map<String, String> params) {
+        List<String> paramNames = new ArrayList<>();
+        Pattern paramPattern = Pattern.compile(":([a-zA-Z0-9]+)");
+        Matcher paramMatcher = paramPattern.matcher(patternStr);
+        StringBuilder regexBuilder = new StringBuilder("^");
+        int lastEnd = 0;
+        while (paramMatcher.find()) {
+            regexBuilder.append(Pattern.quote(patternStr.substring(lastEnd, paramMatcher.start())));
+            regexBuilder.append("([^/]+)");
+            paramNames.add(paramMatcher.group(1));
+            lastEnd = paramMatcher.end();
+        }
+        regexBuilder.append(Pattern.quote(patternStr.substring(lastEnd)));
+        regexBuilder.append("$");
+
+        Pattern regex = Pattern.compile(regexBuilder.toString());
+        Matcher matcher = regex.matcher(path);
+        if (matcher.matches()) {
+            for (int i = 0; i < paramNames.size(); i++) {
+                params.put(paramNames.get(i), matcher.group(i + 1));
+            }
+            return true;
+        }
+        return false;
     }
 
     private String homePage() {
@@ -98,5 +142,15 @@ public class HttpServer {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    private String buildUser(int id) {
+        // get user from index i+1
+        if (id < 1 || id > users.size()) {
+            return null;
+        }
+
+        String name = users.get(id - 1);
+        return "{\"id\": " + id + ", \"name\": \"" + name + "\"}";
     }
 }
